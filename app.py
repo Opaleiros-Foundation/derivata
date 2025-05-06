@@ -1,6 +1,18 @@
 import streamlit as st
 import sympy as sp
 import pandas as pd
+import base64
+
+# Função para carregar e exibir a logo SVG
+def load_svg_logo():
+    with open("static/logo.svg", "r") as f:
+        svg = f.read()
+    
+    # Codificar o SVG em base64 para exibição
+    b64 = base64.b64encode(svg.encode("utf-8")).decode("utf-8")
+    
+    # Retornar o HTML para exibir o SVG
+    return f'<img src="data:image/svg+xml;base64,{b64}" width="150" height="150">'
 
 def calculate_derivative(expression, variable, order=1):
     """Calculate the derivative of an expression with respect to a variable."""
@@ -61,17 +73,78 @@ def get_derivative_steps(expression, variable):
 
 # Configuração da página
 st.set_page_config(
-    page_title="Calculadora de Derivadas",
+    page_title="Derivata - Calculadora de Derivadas",
     page_icon="📊",
     layout="centered"
 )
 
-# Título e descrição
-st.title("Calculadora de Derivadas")
+# Exibir logo e título
+col1, col2 = st.columns([1, 3])
+with col1:
+    st.markdown(load_svg_logo(), unsafe_allow_html=True)
+with col2:
+    st.title("Derivata")
+    st.markdown("### Calculadora de Derivadas Cyberpunk")
+
 st.markdown("""
 Esta aplicação calcula derivadas de expressões matemáticas usando SymPy.
 Escolha o tipo de derivada que deseja calcular e insira a expressão.
 """)
+
+# Aplicar estilo cyberpunk
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(to bottom right, #0b0b2d, #1a1a4a, #2a0a3a);
+    }
+    h1, h2, h3 {
+        color: #00ffaa !important;
+        text-shadow: 0 0 5px #00ffaa80;
+    }
+    .stButton>button {
+        background-color: #8a2be2;
+        color: white;
+        border: 1px solid #00ffaa;
+    }
+    .stButton>button:hover {
+        background-color: #9a3bf2;
+        border: 1px solid #00ffff;
+    }
+    .stTextInput>div>div>input {
+        background-color: rgba(0, 0, 0, 0.2);
+        color: white;
+        border: 1px solid #8a2be2;
+    }
+    .stTextInput>div>div>input:focus {
+        border: 1px solid #00ffaa;
+    }
+    .stSelectbox>div>div>div {
+        background-color: rgba(0, 0, 0, 0.2);
+        color: white;
+        border: 1px solid #8a2be2;
+    }
+    .stTab {
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+    .stTab[data-baseweb="tab"] {
+        color: #00ffaa;
+    }
+    .stTab[aria-selected="true"] {
+        background-color: rgba(138, 43, 226, 0.4);
+        border-bottom: 2px solid #00ffaa;
+    }
+    .stMarkdown {
+        color: #e0e0e0;
+    }
+    .stTable {
+        background-color: rgba(0, 0, 0, 0.3);
+    }
+    .css-1aumxhk {
+        background-color: rgba(0, 0, 0, 0.2);
+        border: 1px solid #8a2be2;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Exemplos de expressões
 examples = {
