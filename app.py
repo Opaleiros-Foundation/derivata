@@ -3,6 +3,9 @@ import sympy as sp
 import pandas as pd
 import os
 import base64
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # Configuração da página - DEVE ser o primeiro comando Streamlit
 st.set_page_config(
@@ -409,6 +412,276 @@ def display_partial_derivative_results(expression, results):
     
     st.markdown('</div>', unsafe_allow_html=True)
 
+def create_3d_visualization(expression, variables):
+    """Cria visualização 3D para funções de duas variáveis e suas derivadas parciais."""
+    try:
+        # Verificar se temos exatamente duas variáveis (x e y)
+        if len(variables) != 2 or not all(var in ['x', 'y'] for var in variables):
+            return None, "Visualização 3D disponível apenas para funções de x e y."
+        
+        # Criar símbolos SymPy
+        x, y = sp.symbols('x y')
+        expr = sp.sympify(expression)
+        
+        # Calcular derivadas parciais
+        dx = sp.diff(expr, x)
+        dy = sp.diff(expr, y)
+        
+        # Converter para funções numéricas
+        f_expr = sp.lambdify((x, y), expr, "numpy")
+        f_dx = sp.lambdify((x, y), dx, "numpy")
+        f_dy = sp.lambdify((x, y), dy, "numpy")
+        
+        # Criar grade de pontos
+        x_range = np.linspace(-3, 3, 50)
+        y_range = np.linspace(-3, 3, 50)
+        X, Y = np.meshgrid(x_range, y_range)
+        
+        # Calcular valores da função e derivadas
+        try:
+            Z = f_expr(X, Y)
+            Z_dx = f_dx(X, Y)
+            Z_dy = f_dy(X, Y)
+            
+            # Lidar com valores infinitos ou NaN
+            Z = np.nan_to_num(Z, nan=0, posinf=10, neginf=-10)
+            Z_dx = np.nan_to_num(Z_dx, nan=0, posinf=5, neginf=-5)
+            Z_dy = np.nan_to_num(Z_dy, nan=0, posinf=5, neginf=-5)
+            
+            # Criar subplots: função original, derivada em x, derivada em y
+            fig = make_subplots(
+                rows=1, cols=3,
+                specs=[[{'type': 'surface'}, {'type': 'surface'}, {'type': 'surface'}]],
+                subplot_titles=[
+                    f'Função f(x,y)', 
+                    f'Derivada parcial ∂f/∂x', 
+                    f'Derivada parcial ∂f/∂y'
+                ],
+                horizontal_spacing=0.05
+            )
+            
+            # Superfície da função original
+            fig.add_trace(
+                go.Surface(
+                    z=Z, x=X, y=Y, 
+                    colorscale='Viridis',
+                    name='f(x,y)'
+                ),
+                row=1, col=1
+            )
+            
+            # Superfície da derivada parcial em relação a x
+            fig.add_trace(
+                go.Surface(
+                    z=Z_dx, x=X, y=Y, 
+                    colorscale='Plasma',
+                    name='∂f/∂x'
+                ),
+                row=1, col=2
+            )
+            
+            # Superfície da derivada parcial em relação a y
+            fig.add_trace(
+                go.Surface(
+                    z=Z_dy, x=X, y=Y, 
+                    colorscale='Cividis',
+                    name='∂f/∂y'
+                ),
+                row=1, col=3
+            )
+            
+            # Atualizar layout
+            fig.update_layout(
+                title_text=f"Visualização 3D de {expression} e suas derivadas parciais",
+                height=600,
+                scene=dict(
+                    xaxis_title='x',
+                    yaxis_title='y',
+                    zaxis_title='f(x,y)',
+                    aspectratio=dict(x=1, y=1, z=0.7)
+                ),
+                scene2=dict(
+                    xaxis_title='x',
+                    yaxis_title='y',
+                    zaxis_title='∂f/∂x',
+                    aspectratio=dict(x=1, y=1, z=0.7)
+                ),
+                scene3=dict(
+                    xaxis_title='x',
+                    yaxis_title='y',
+                    zaxis_title='∂f/∂y',
+                    aspectratio=dict(x=1, y=1, z=0.7)
+                ),
+                font=dict(
+                    family="Courier New, monospace",
+                    size=12,
+                    color="#7eefc4"
+                ),
+                paper_bgcolor='rgba(20, 20, 40, 0.9)',
+                plot_bgcolor='rgba(20, 20, 40, 0.9)',
+                margin=dict(l=0, r=0, t=40, b=0)
+            )
+            
+            return fig, None
+            
+        except Exception as e:
+            return None, f"Erro ao calcular valores: {str(e)}"
+            
+    except Exception as e:
+        return None, f"Erro ao criar visualização: {str(e)}"
+
+def get_geometric_interpretation(expression, variables):
+    """Retorna uma explicação do significado geométrico das derivadas parciais."""
+    try:
+        x, y, z = sp.symbols('x y z')
+        expr = sp.sympify(expression)
+        
+        # Calcular derivadas parciais
+        derivatives = {}
+        for var in variables:
+            derivatives[var] = sp.diff(expr, var)
+        
+        # Criar explicação
+        explanation = f"""
+        ### Significado Geométrico das Derivadas Parciais
+        
+        Para a função f({', '.join(variables)}) = {expr}:
+        
+        """
+        
+        # Adicionar explicação para cada variável
+        for var in variables:
+            explanation += f"""
+            #### Derivada Parcial em relação a {var}:
+            
+            ∂f/∂{var} = {derivatives[var]}
+            
+            Esta derivada representa a taxa de variação instantânea da função quando {var} varia, 
+            mantendo todas as outras variáveis constantes. Geometricamente, é a inclinação da curva 
+            obtida ao cortar a superfície da função com um plano perpendicular ao eixo {var}.
+            """
+        
+        # Adicionar explicação sobre o gradiente se tivermos múltiplas variáveis
+        if len(variables) > 1:
+            explanation += """
+            #### Gradiente da Função:
+            
+            O gradiente ∇f é um vetor cujas componentes são as derivadas parciais da função:
+            
+            ∇f = (∂f/∂x₁, ∂f/∂x₂, ..., ∂f/∂xₙ)
+            
+            O gradiente tem duas propriedades importantes:
+            1. Aponta na direção de maior crescimento da função
+            2. É perpendicular às curvas/superfícies de nível da função
+            
+            A magnitude do gradiente |∇f| indica a taxa desse crescimento.
+            """
+        
+        return explanation
+    except Exception as e:
+        return f"Erro ao gerar interpretação geométrica: {str(e)}"
+
+def generate_report_html(expression, variables, results):
+    """Gera um relatório HTML para as derivadas parciais."""
+    x, y, z = sp.symbols('x y z')
+    expr = sp.sympify(expression)
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Relatório de Derivadas Parciais</title>
+        <style>
+            body {{
+                font-family: 'Courier New', monospace;
+                background-color: #121236;
+                color: #e0e0e0;
+                padding: 20px;
+            }}
+            h1, h2, h3 {{
+                color: #7eefc4;
+            }}
+            .container {{
+                max-width: 800px;
+                margin: 0 auto;
+                background-color: rgba(30, 30, 50, 0.7);
+                padding: 20px;
+                border-radius: 10px;
+                border: 1px solid rgba(106, 43, 162, 0.5);
+            }}
+            .result-box {{
+                background-color: rgba(20, 20, 40, 0.7);
+                padding: 15px;
+                border-radius: 5px;
+                margin: 10px 0;
+                border-left: 3px solid #ff00ff;
+            }}
+            .variable-tag {{
+                display: inline-block;
+                background-color: rgba(106, 43, 162, 0.5);
+                color: #7eefc4;
+                padding: 2px 8px;
+                border-radius: 4px;
+                margin-right: 5px;
+                font-weight: bold;
+            }}
+            .footer {{
+                text-align: center;
+                margin-top: 30px;
+                font-size: 0.8em;
+                color: #7eefc4;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Relatório de Derivadas Parciais</h1>
+            
+            <h2>Função Original</h2>
+            <div class="result-box">
+                f({', '.join(variables)}) = {expr}
+            </div>
+            
+            <h2>Derivadas Parciais</h2>
+    """
+    
+    # Adicionar cada derivada parcial
+    for var, result in results.items():
+        html += f"""
+            <div class="result-box">
+                <span class="variable-tag">∂/∂{var}</span>
+                <p>∂f/∂{var} = {result}</p>
+                <p>Forma simplificada: {sp.simplify(result)}</p>
+            </div>
+        """
+    
+    # Adicionar interpretação geométrica
+    html += f"""
+            <h2>Interpretação Geométrica</h2>
+            <div class="result-box">
+                <p>As derivadas parciais representam a taxa de variação da função em relação a cada variável, 
+                mantendo as outras variáveis constantes.</p>
+                
+                <p>O gradiente ∇f = ({', '.join([f'∂f/∂{var}' for var in variables])}) aponta na direção 
+                de maior crescimento da função e é perpendicular às curvas de nível.</p>
+            </div>
+            
+            <div class="footer">
+                Gerado por Derivata - Calculadora de Derivadas Cyberpunk
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html
+
+def create_download_link(html, filename="derivadas_parciais_relatorio.html"):
+    """Cria um link para download do relatório HTML."""
+    b64 = base64.b64encode(html.encode()).decode()
+    href = f'<a href="data:text/html;base64,{b64}" download="{filename}" class="download-button">Baixar Relatório HTML</a>'
+    return href
+
 # Aplicar estilo cyberpunk mais suave
 st.markdown("""
 <style>
@@ -517,7 +790,7 @@ st.markdown("""
         border-radius: 10px;
         padding: 20px;
         margin: 20px 0;
-        box-shadow: 0 0 10px rgba(138, 43, 226, 0.2);
+        box-shadow: 0 0 10px rgba(138, 43, 162, 0.2);
     }
     
     /* Animação de gradiente para cabeçalhos - mais suave */
@@ -710,6 +983,54 @@ st.markdown("""
         margin: 20px 0;
         box-shadow: 0 0 10px rgba(255, 0, 255, 0.2);
     }
+    
+    /* Estilo para explicações de visualização */
+    .visualization-explanation {
+        background-color: rgba(30, 30, 50, 0.7);
+        border-left: 3px solid #ff00ff;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 0 5px 5px 0;
+    }
+    
+    .visualization-explanation h4 {
+        color: #7eefc4;
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+    
+    .visualization-explanation ul {
+        margin-left: 20px;
+        padding-left: 0;
+    }
+    
+    .visualization-explanation li {
+        margin-bottom: 5px;
+        color: #e0e0e0;
+    }
+    
+    .visualization-explanation p {
+        margin-top: 10px;
+        color: #e0e0e0;
+    }
+    
+    /* Estilo para os gráficos Plotly */
+    .js-plotly-plot {
+        border: 1px solid rgba(106, 43, 162, 0.3);
+        border-radius: 5px;
+        box-shadow: 0 0 15px rgba(106, 43, 162, 0.2);
+    }
+    
+    /* Estilo para os expanders de visualização */
+    .streamlit-expanderHeader:has(span:contains("Visualização")) {
+        background: linear-gradient(90deg, rgba(30, 30, 50, 0.7), rgba(106, 43, 162, 0.3));
+        border-radius: 5px;
+        padding: 10px;
+        border: 1px solid rgba(106, 43, 162, 0.3);
+        margin-bottom: 10px;
+        color: #7eefc4 !important;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -849,14 +1170,50 @@ with col1:
                     
                     # Adicionar visualização interativa para funções de duas variáveis
                     if len(vars_list) == 2 and all(var in ['x', 'y'] for var in vars_list):
-                        with st.expander("Visualização da Função e Derivadas Parciais", expanded=False):
-                            st.markdown("""
-                            A visualização mostraria a superfície da função e os vetores gradiente 
-                            indicando a direção de maior crescimento em cada ponto.
-                            
-                            Para implementar esta visualização, seria necessário adicionar código 
-                            usando matplotlib ou plotly para criar gráficos 3D interativos.
-                            """)
+                        with st.expander("Visualização 3D da Função e Derivadas Parciais", expanded=True):
+                            # Criar visualização 3D
+                            fig_3d, error_3d = create_3d_visualization(expression, vars_list)
+                            if fig_3d:
+                                st.plotly_chart(fig_3d, use_container_width=True)
+                                
+                                # Adicionar explicação
+                                st.markdown("""
+                                <div class="visualization-explanation">
+                                    <h4>Interpretação da Visualização 3D:</h4>
+                                    <ul>
+                                        <li>O primeiro gráfico mostra a superfície da função f(x,y).</li>
+                                        <li>O segundo gráfico mostra a derivada parcial em relação a x (∂f/∂x).</li>
+                                        <li>O terceiro gráfico mostra a derivada parcial em relação a y (∂f/∂y).</li>
+                                    </ul>
+                                    <p>As cores indicam a altura (valor) em cada ponto. Observe como as derivadas parciais 
+                                    mostram a taxa de variação da função em cada direção.</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.warning(f"Não foi possível criar a visualização 3D: {error_3d}")
+                        
+                        with st.expander("Visualização do Gradiente (Campo Vetorial)", expanded=False):
+                            # Criar visualização do gradiente
+                            fig_grad, error_grad = create_gradient_visualization(expression, vars_list)
+                            if fig_grad:
+                                st.plotly_chart(fig_grad, use_container_width=True)
+                                
+                                # Adicionar explicação
+                                st.markdown("""
+                                <div class="visualization-explanation">
+                                    <h4>Interpretação do Gradiente:</h4>
+                                    <p>O gradiente ∇f(x,y) = (∂f/∂x, ∂f/∂y) é um vetor que:</p>
+                                    <ul>
+                                        <li>Aponta na direção de maior crescimento da função.</li>
+                                        <li>Tem magnitude proporcional à taxa desse crescimento.</li>
+                                        <li>É perpendicular às curvas de nível (contornos) da função.</li>
+                                    </ul>
+                                    <p>No gráfico acima, as linhas coloridas são as curvas de nível da função, 
+                                    e as setas roxas representam o gradiente em cada ponto.</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.warning(f"Não foi possível criar a visualização do gradiente: {error_grad}")
                 except Exception as e:
                     st.error(f"Erro ao calcular as derivadas parciais: {str(e)}")
             else:
