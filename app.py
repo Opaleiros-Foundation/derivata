@@ -31,6 +31,44 @@ examples = {
     "Função Composta": "sin(exp(x))"
 }
 
+def get_partial_derivative_examples():
+    """Retorna exemplos de derivadas parciais com explicações."""
+    examples = {
+        "Função de Duas Variáveis": {
+            "expression": "x**2 + x*y + y**2",
+            "variables": ["x", "y"],
+            "explanation": """
+            Esta é uma função quadrática de duas variáveis. As derivadas parciais mostram 
+            como a função muda quando alteramos x ou y independentemente.
+            """
+        },
+        "Função Exponencial Multivariável": {
+            "expression": "exp(x*y)",
+            "variables": ["x", "y"],
+            "explanation": """
+            Esta função exponencial cresce rapidamente quando x e y aumentam juntos. 
+            As derivadas parciais mostram taxas de crescimento diferentes para cada variável.
+            """
+        },
+        "Função Trigonométrica Multivariável": {
+            "expression": "sin(x) + cos(y)",
+            "variables": ["x", "y"],
+            "explanation": """
+            Esta função combina seno de x e cosseno de y. As derivadas parciais mostram 
+            como a oscilação em cada direção afeta o valor da função.
+            """
+        },
+        "Função Composta Multivariável": {
+            "expression": "sin(x*y) + exp(x+y)",
+            "variables": ["x", "y"],
+            "explanation": """
+            Esta função combina uma função trigonométrica do produto xy com uma exponencial da soma x+y. 
+            As derivadas parciais requerem a aplicação da regra da cadeia.
+            """
+        }
+    }
+    return examples
+
 # Funções para cálculo e formatação
 def calculate_derivative(expression, variable, order=1):
     """Calculate the derivative of an expression with respect to a variable."""
@@ -101,6 +139,152 @@ def get_derivative_steps(expression, variable):
         st.error(f"Erro ao gerar os passos da derivação: {str(e)}")
         return ["Não foi possível gerar os passos para esta expressão."]
 
+def get_partial_derivative_steps(expression, variable):
+    """Get detailed steps for calculating a partial derivative."""
+    try:
+        x, y, z = sp.symbols('x y z')
+        expr = sp.sympify(expression)
+        var = sp.Symbol(variable)
+        
+        steps = []
+        steps.append(f"Expressão original: {expr}")
+        steps.append(f"Calculando a derivada parcial em relação a {variable}...")
+        steps.append(f"Passo 1: Tratamos todas as outras variáveis como constantes")
+        
+        # Identificar todas as variáveis na expressão
+        all_vars = [str(symbol) for symbol in expr.free_symbols]
+        other_vars = [v for v in all_vars if v != variable]
+        
+        if other_vars:
+            steps.append(f"Passo 2: Variáveis tratadas como constantes: {', '.join(other_vars)}")
+        
+        # Identificar o tipo de expressão e aplicar regras específicas
+        if expr.is_polynomial(var):
+            steps.append(f"Passo 3: Aplicando regras para polinômios")
+            expanded = sp.expand(expr)
+            steps.append(f"Passo 4: Expandindo a expressão: {expanded}")
+            
+            # Mostrar a derivada de cada termo separadamente
+            terms = expanded.as_ordered_terms()
+            steps.append(f"Passo 5: Derivando cada termo separadamente em relação a {variable}:")
+            
+            for term in terms:
+                # Verificar se o termo contém a variável
+                if term.has(var):
+                    # Extrair coeficiente e potência para termos do tipo c*x^n
+                    if term.is_Pow and term.base == var:
+                        coef = 1
+                        power = term.exp
+                        steps.append(f"  ∂/∂{variable}({term}) = {coef*power}*{variable}^{power-1} (regra: ∂/∂x(x^n) = n*x^(n-1))")
+                    elif term.is_Mul:
+                        # Separar fatores que contêm a variável
+                        var_factors = [f for f in term.args if f.has(var)]
+                        const_factors = [f for f in term.args if not f.has(var)]
+                        
+                        if var_factors:
+                            steps.append(f"  Para o termo {term}:")
+                            steps.append(f"    - Fatores constantes em relação a {variable}: {sp.Mul(*const_factors) if const_factors else 1}")
+                            steps.append(f"    - Fatores contendo {variable}: {sp.Mul(*var_factors) if var_factors else 1}")
+                            steps.append(f"    - Aplicando a regra do produto: ∂/∂{variable}({term}) = {sp.diff(term, var)}")
+                    else:
+                        steps.append(f"  ∂/∂{variable}({term}) = {sp.diff(term, var)}")
+                else:
+                    steps.append(f"  ∂/∂{variable}({term}) = 0 (termo não contém {variable})")
+            
+            steps.append(f"Passo 6: Somando todas as derivadas parciais dos termos...")
+        
+        elif expr.has(sp.sin, sp.cos, sp.tan):
+            steps.append(f"Passo 3: Aplicando regras para funções trigonométricas")
+            steps.append(f"Regras básicas:")
+            steps.append(f"• ∂/∂x(sin(x)) = cos(x)")
+            steps.append(f"• ∂/∂x(cos(x)) = -sin(x)")
+            steps.append(f"• ∂/∂x(tan(x)) = sec²(x) = 1/cos²(x)")
+            
+            # Verificar se há composição de funções
+            has_composition = False
+            for func in expr.atoms(sp.Function):
+                if func.args[0] != var and func.args[0].has(var):
+                    has_composition = True
+                    break
+            
+            if has_composition:
+                steps.append(f"Passo 4: Detectada composição de funções. Aplicando a regra da cadeia:")
+                steps.append(f"• Regra da cadeia: ∂/∂{variable}(f(g(x))) = f'(g(x)) · ∂g/∂{variable}")
+        
+        elif expr.has(sp.exp):
+            steps.append(f"Passo 3: Aplicando regras para funções exponenciais")
+            steps.append(f"Regra básica: ∂/∂x(e^x) = e^x")
+            
+            # Verificar se há composição de funções
+            has_composition = False
+            for func in expr.atoms(sp.Function):
+                if func.args[0] != var and func.args[0].has(var):
+                    has_composition = True
+                    break
+            
+            if has_composition:
+                steps.append(f"Passo 4: Detectada composição de funções. Aplicando a regra da cadeia:")
+                steps.append(f"• Regra da cadeia para exponenciais: ∂/∂{variable}(e^(g(x))) = e^(g(x)) · ∂g/∂{variable}")
+        
+        elif expr.has(sp.log):
+            steps.append(f"Passo 3: Aplicando regras para funções logarítmicas")
+            steps.append(f"Regra básica: ∂/∂x(ln(x)) = 1/x")
+            
+            # Verificar se há composição de funções
+            has_composition = False
+            for func in expr.atoms(sp.Function):
+                if func.args[0] != var and func.args[0].has(var):
+                    has_composition = True
+                    break
+            
+            if has_composition:
+                steps.append(f"Passo 4: Detectada composição de funções. Aplicando a regra da cadeia:")
+                steps.append(f"• Regra da cadeia para logaritmos: ∂/∂{variable}(ln(g(x))) = (1/g(x)) · ∂g/∂{variable}")
+        
+        # Verificar se há produtos ou quocientes
+        elif any(arg.is_Mul for arg in expr.args):
+            steps.append(f"Passo 3: Aplicando a regra do produto:")
+            steps.append(f"• Regra do produto: ∂/∂{variable}(f(x)·g(x)) = ∂f/∂{variable}·g(x) + f(x)·∂g/∂{variable}")
+            
+            # Identificar os fatores
+            if expr.is_Mul:
+                factors = expr.args
+                steps.append(f"Fatores identificados: {', '.join(str(f) for f in factors)}")
+                
+                # Mostrar a aplicação da regra do produto
+                for i, factor in enumerate(factors):
+                    other_factors = [f for j, f in enumerate(factors) if j != i]
+                    other_product = sp.Mul(*other_factors)
+                    steps.append(f"Termo {i+1}: ∂/∂{variable}({factor}) · ({other_product}) = {sp.diff(factor, var)} · ({other_product})")
+                
+                steps.append(f"Somando todos os termos...")
+        
+        elif expr.is_rational_function(var):
+            steps.append(f"Passo 3: Aplicando a regra do quociente:")
+            num, den = sp.fraction(expr)
+            steps.append(f"Identificando numerador: {num}")
+            steps.append(f"Identificando denominador: {den}")
+            steps.append(f"• Regra do quociente: ∂/∂{variable}(f(x)/g(x)) = (g(x)·∂f/∂{variable} - f(x)·∂g/∂{variable})/g(x)²")
+            
+            # Mostrar a aplicação da regra do quociente
+            steps.append(f"Calculando ∂/∂{variable}({num}) = {sp.diff(num, var)}")
+            steps.append(f"Calculando ∂/∂{variable}({den}) = {sp.diff(den, var)}")
+            steps.append(f"Aplicando a fórmula: ({den} · {sp.diff(num, var)} - {num} · {sp.diff(den, var)}) / ({den})²")
+        
+        # Calcular a derivada final
+        derivative = sp.diff(expr, var)
+        steps.append(f"Resultado final: {derivative}")
+        
+        # Adicionar passo de simplificação se necessário
+        simplified = sp.simplify(derivative)
+        if simplified != derivative:
+            steps.append(f"Simplificando: {simplified}")
+        
+        return steps
+    except Exception as e:
+        st.error(f"Erro ao gerar os passos da derivação parcial: {str(e)}")
+        return ["Não foi possível gerar os passos para esta expressão."]
+
 def format_expression(expr, use_latex=True):
     """Formata uma expressão matemática para exibição."""
     if use_latex:
@@ -142,28 +326,88 @@ def display_result(title, expression, result, variable=None, order=1):
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-def display_steps(steps):
+def display_steps(steps, is_partial=False):
     """Exibe os passos da derivação com formatação aprimorada."""
-    with st.expander("Ver passo a passo da derivação", expanded=False):
-        for i, step in enumerate(steps):
-            # Verifica se o passo contém expressões matemáticas que podem ser renderizadas em LaTeX
-            if "=" in step and not step.startswith("Expressão") and not step.startswith("Calculando") and not step.startswith("Aplicando") and not step.startswith("Regra"):
-                # Divide o passo em texto e expressão
-                parts = step.split("=", 1)
-                if len(parts) == 2:
-                    left, right = parts
-                    try:
-                        # Formata o passo com LaTeX
-                        formatted_step = f"{left}= ${sp.latex(sp.sympify(right.strip()))}$"
-                        st.markdown(f'<div class="step-item">{formatted_step}</div>', unsafe_allow_html=True)
-                    except:
-                        # Se não conseguir converter para LaTeX, mostra o texto original
-                        st.markdown(f'<div class="step-item">{step}</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown(f'<div class="step-item">{step}</div>', unsafe_allow_html=True)
+    for i, step in enumerate(steps):
+        # Verifica se o passo contém expressões matemáticas que podem ser renderizadas em LaTeX
+        if "=" in step and not step.startswith("Expressão") and not step.startswith("Calculando") and not step.startswith("Aplicando") and not step.startswith("Regra") and not step.startswith("Passo") and not step.startswith("•") and not step.startswith("  Para") and not step.startswith("    -"):
+            # Divide o passo em texto e expressão
+            parts = step.split("=", 1)
+            if len(parts) == 2:
+                left, right = parts
+                try:
+                    # Formata o passo com LaTeX
+                    formatted_step = f"{left}= ${sp.latex(sp.sympify(right.strip()))}$"
+                    st.markdown(f'<div class="step-item{" partial-step" if is_partial else ""}">{formatted_step}</div>', unsafe_allow_html=True)
+                except:
+                    st.markdown(f'<div class="step-item{" partial-step" if is_partial else ""}">{step}</div>', unsafe_allow_html=True)
             else:
-                # Para passos sem expressões matemáticas ou que não devem ser processados
-                st.markdown(f'<div class="step-item">{step}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="step-item{" partial-step" if is_partial else ""}">{step}</div>', unsafe_allow_html=True)
+        else:
+            # Destacar passos importantes
+            if step.startswith("Passo") or step.startswith("Regra") or step.startswith("•"):
+                st.markdown(f'<div class="step-item{" partial-step" if is_partial else ""} important-step">{step}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="step-item{" partial-step" if is_partial else ""}">{step}</div>', unsafe_allow_html=True)
+
+def display_partial_derivative_results(expression, results):
+    """Exibe os resultados das derivadas parciais com formatação aprimorada."""
+    st.markdown('<div class="result-box partial-result-box">', unsafe_allow_html=True)
+    st.subheader("Resultados das Derivadas Parciais")
+    
+    # Expressão original
+    st.markdown("**Expressão original:**")
+    expr = sp.sympify(expression)
+    st.latex(sp.latex(expr))
+    
+    # Adicionar uma linha de separação
+    st.markdown("<hr style='border: 1px solid rgba(106, 43, 162, 0.3); margin: 20px 0;'>", unsafe_allow_html=True)
+    
+    # Resultados das derivadas parciais
+    st.markdown("**Derivadas parciais:**")
+    
+    # Criar colunas para os resultados
+    vars_list = list(results.keys())
+    cols = st.columns(min(3, len(vars_list)))
+    for i, (var, result) in enumerate(results.items()):
+        with cols[i % len(cols)]:
+            st.markdown(f'<span class="variable-tag">∂/∂{var}</span>', unsafe_allow_html=True)
+            st.latex(f"\\frac{{\partial}}{{\\partial {var}}}({sp.latex(expr)}) = {sp.latex(result)}")
+    
+    # Adicionar uma linha de separação
+    st.markdown("<hr style='border: 1px solid rgba(106, 43, 162, 0.3); margin: 20px 0;'>", unsafe_allow_html=True)
+    
+    # Mostrar formas simplificadas
+    st.markdown("**Formas simplificadas:**")
+    cols = st.columns(min(3, len(vars_list)))
+    for i, (var, result) in enumerate(results.items()):
+        with cols[i % len(cols)]:
+            simplified = sp.simplify(result)
+            st.markdown(f'<span class="variable-tag">∂/∂{var}</span>', unsafe_allow_html=True)
+            st.latex(f"\\frac{{\partial}}{{\\partial {var}}}f = {sp.latex(simplified)}")
+    
+    # Adicionar uma linha de separação
+    st.markdown("<hr style='border: 1px solid rgba(106, 43, 162, 0.3); margin: 20px 0;'>", unsafe_allow_html=True)
+    
+    # Adicionar interpretação geométrica
+    st.markdown("**Interpretação Geométrica:**")
+    st.markdown("""
+    As derivadas parciais representam a taxa de variação da função em relação a cada variável, 
+    mantendo as outras variáveis constantes. Geometricamente:
+    """)
+    
+    cols = st.columns(min(3, len(vars_list)))
+    for i, var in enumerate(vars_list):
+        with cols[i % len(cols)]:
+            st.markdown(f"""
+            <div class="interpretation-box">
+                <span class="variable-tag">∂/∂{var}</span>
+                <p>Representa a inclinação da curva na direção do eixo {var}, 
+                mantendo as outras variáveis fixas.</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Aplicar estilo cyberpunk mais suave
 st.markdown("""
@@ -316,6 +560,81 @@ st.markdown("""
         border-radius: 0 5px 5px 0;
     }
     
+    /* Estilo específico para passos de derivadas parciais */
+    .partial-step {
+        background-color: rgba(30, 30, 60, 0.7);
+        border-left: 3px solid #ff00ff;
+    }
+    
+    /* Estilo para passos importantes */
+    .important-step {
+        background-color: rgba(40, 20, 60, 0.7);
+        border-left: 5px solid #ff00ff;
+        font-weight: bold;
+    }
+    
+    /* Estilo para o resultado final da derivada parcial */
+    .partial-result-box {
+        background-color: rgba(25, 25, 45, 0.8);
+        border: 1px solid rgba(106, 43, 162, 0.5);
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 0 15px rgba(106, 43, 162, 0.3);
+    }
+    
+    /* Estilo para as variáveis nas derivadas parciais */
+    .variable-tag {
+        display: inline-block;
+        background-color: rgba(106, 43, 162, 0.5);
+        color: #7eefc4;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-right: 5px;
+        font-family: monospace;
+        font-weight: bold;
+    }
+    
+    /* Estilo para a caixa de interpretação */
+    .interpretation-box {
+        background-color: rgba(30, 30, 50, 0.7);
+        border-left: 3px solid #ff00ff;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 0 5px 5px 0;
+    }
+    
+    /* Melhorar a aparência dos expanders para derivadas parciais */
+    .streamlit-expanderHeader:has(span:contains("∂/∂")) {
+        background: linear-gradient(90deg, rgba(30, 30, 50, 0.7), rgba(106, 43, 162, 0.3));
+        border-radius: 5px;
+        padding: 10px;
+        border: 1px solid rgba(106, 43, 162, 0.3);
+        margin-bottom: 10px;
+        color: #7eefc4 !important;
+        font-weight: bold;
+    }
+    
+    /* Estilo para a tabela de resultados */
+    .dataframe {
+        background-color: rgba(30, 30, 50, 0.7);
+        border-collapse: collapse;
+        border: 1px solid rgba(106, 43, 162, 0.5);
+        font-family: monospace;
+    }
+    
+    .dataframe th {
+        background-color: rgba(106, 43, 162, 0.5);
+        color: #7eefc4;
+        padding: 8px;
+        border: 1px solid rgba(106, 43, 162, 0.3);
+    }
+    
+    .dataframe td {
+        padding: 8px;
+        border: 1px solid rgba(106, 43, 162, 0.3);
+    }
+    
     /* Estilo para o título principal - menos brilhante */
     .main-title {
         text-align: center;
@@ -465,7 +784,7 @@ with col1:
         # Seleção de exemplo ou entrada manual
         example_choice = st.selectbox(
             "Escolha um exemplo ou digite sua própria expressão:",
-            ["Digite sua expressão", "Função de Duas Variáveis", "Função Exponencial Multivariável", "Função Trigonométrica Multivariável"],
+            ["Digite sua expressão", "Função de Duas Variáveis", "Função Exponencial Multivariável", "Função Trigonométrica Multivariável", "Função Composta Multivariável"],
             key="partial_example"
         )
         
@@ -484,12 +803,17 @@ with col1:
         elif example_choice == "Função Trigonométrica Multivariável":
             expression = "sin(x) + cos(y)"
             st.text_input("Expressão:", value=expression, key="partial_expression_display", disabled=True)
+        elif example_choice == "Função Composta Multivariável":
+            expression = "sin(x*y) + exp(x+y)"
+            st.text_input("Expressão:", value=expression, key="partial_expression_display", disabled=True)
         
         variables = st.text_input(
             "Variáveis (separadas por espaço):",
             value="x y",
             key="partial_variables"
         )
+        
+        show_steps = st.checkbox("Mostrar passo a passo", value=True, key="show_partial_steps")
         
         if st.button("Calcular Derivadas Parciais", key="partial_calculate"):
             if expression and variables:
@@ -499,25 +823,40 @@ with col1:
                     
                     if results:
                         # Exibir resultados com formatação aprimorada
-                        st.markdown('<div class="result-box">', unsafe_allow_html=True)
-                        st.subheader("Resultados das Derivadas Parciais:")
+                        display_partial_derivative_results(expression, results)
                         
-                        expr = sp.sympify(expression)
-                        for var, result in results.items():
-                            st.latex(f"\\frac{{\partial}}{{\\partial {var}}}({sp.latex(expr)}) = {sp.latex(result)}")
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-                        
+                        # Exibir os passos para cada variável se solicitado
+                        if show_steps:
+                            st.markdown("### Passo a Passo da Derivação")
+                            for var in vars_list:
+                                with st.expander(f"Ver passo a passo para ∂/∂{var}", expanded=False):
+                                    steps = get_partial_derivative_steps(expression, var)
+                                    display_steps(steps, is_partial=True)
+                    
+                    # Mostrar tabela de resultados em um expander
+                    with st.expander("Ver tabela de resultados", expanded=False):
                         # Criar tabela de resultados estilizada com LaTeX
                         data = []
                         for var, result in results.items():
                             data.append({
                                 "Variável": f"${var}$",
-                                "Expressão da Derivada": f"${sp.latex(result)}$"
+                                "Expressão da Derivada": f"${sp.latex(result)}$",
+                                "Forma Simplificada": f"${sp.latex(sp.simplify(result))}$"
                             })
                         
                         df = pd.DataFrame(data)
                         st.table(df)
+                    
+                    # Adicionar visualização interativa para funções de duas variáveis
+                    if len(vars_list) == 2 and all(var in ['x', 'y'] for var in vars_list):
+                        with st.expander("Visualização da Função e Derivadas Parciais", expanded=False):
+                            st.markdown("""
+                            A visualização mostraria a superfície da função e os vetores gradiente 
+                            indicando a direção de maior crescimento em cada ponto.
+                            
+                            Para implementar esta visualização, seria necessário adicionar código 
+                            usando matplotlib ou plotly para criar gráficos 3D interativos.
+                            """)
                 except Exception as e:
                     st.error(f"Erro ao calcular as derivadas parciais: {str(e)}")
             else:
