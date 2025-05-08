@@ -56,4 +56,58 @@ def render_higher_order_tab(derivative_service: DerivativeService):
                 if result:
                     # Exibir o resultado formatado
                     display_result(
-                        "Resultado da Der
+                        "Resultado da Derivada de Ordem Superior",
+                        result.original_expression.sympy_expr,
+                        result.result,
+                        variable,
+                        order
+                    )
+                    
+                    # Exibir passos com formatação aprimorada
+                    display_steps(result.steps)
+                    
+                    # Adicionar explicação sobre derivadas de ordem superior
+                    with st.expander("Sobre Derivadas de Ordem Superior", expanded=False):
+                        st.markdown("""
+                        <div class="interpretation-box">
+                            <h4>O que são derivadas de ordem superior?</h4>
+                            <p>
+                                Derivadas de ordem superior são obtidas aplicando o processo de derivação 
+                                repetidamente a uma função. Por exemplo:
+                            </p>
+                            <ul>
+                                <li>A primeira derivada (ordem 1) representa a taxa de variação da função original.</li>
+                                <li>A segunda derivada (ordem 2) representa a taxa de variação da primeira derivada, 
+                                ou a aceleração da função original.</li>
+                                <li>A terceira derivada (ordem 3) representa a taxa de variação da segunda derivada, 
+                                e assim por diante.</li>
+                            </ul>
+                            <p>
+                                Em física, por exemplo, se f(t) representa a posição de um objeto em função do tempo, 
+                                então f'(t) é a velocidade, f''(t) é a aceleração, e f'''(t) é a taxa de variação da aceleração.
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Adicionar análise do comportamento da função
+                    if order == 2:
+                        with st.expander("Análise de Concavidade", expanded=True):
+                            st.markdown("""
+                            <div class="interpretation-box">
+                                <h4>Análise de Concavidade</h4>
+                                <p>
+                                    A segunda derivada de uma função nos dá informações sobre sua concavidade:
+                                </p>
+                                <ul>
+                                    <li>Se f''(x) > 0, a função é côncava para cima (formato de U).</li>
+                                    <li>Se f''(x) < 0, a função é côncava para baixo (formato de ∩).</li>
+                                    <li>Se f''(x) = 0, pode haver um ponto de inflexão (mudança de concavidade).</li>
+                                </ul>
+                            </div>
+                            """, unsafe_allow_html=True)
+                else:
+                    st.error("Não foi possível calcular a derivada de ordem superior.")
+            except Exception as e:
+                st.error(f"Erro ao calcular a derivada de ordem superior: {str(e)}")
+        else:
+            st.warning("Por favor, preencha todos os campos.")
