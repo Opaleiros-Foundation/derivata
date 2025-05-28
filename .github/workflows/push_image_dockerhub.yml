@@ -34,3 +34,4 @@ jobs:
           docker tag ${{ secrets.DOCKER_USERNAME }}/derivata:0.0.1 ${{ secrets.DOCKER_USERNAME }}/derivata:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/derivata:${{ github.run_id }}
           docker push ${{ secrets.DOCKER_USERNAME }}/derivata:latest
+
